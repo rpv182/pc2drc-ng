@@ -1,0 +1,18 @@
+                    GNU GENERAL PUBLIC LICENSE
+                       Version 2, June 1991
+
+ Copyright (C) 1989, 1991 Free Software Foundation, Inc.,
+ 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ Everyone is permitted to copy and distribute verbatim copies
+ of this license document, but changing it is not allowed.
+
+This project is a rewrite of the installer and runtime around the archived
+pc2drc / libdrc / drc-hostap stack.
+
+- pc2drc-ng scripts: GPL-2.0-or-later
+- Upstream pc2drc (thefloppydriver): GPL-2.0
+- libdrc (Mema Hacking): BSD-style, see the cloned sources
+- OpenSSL 1.0.2u and libnl-1.1.4 are downloaded at install time into ./prefix
+  and keep their own licenses
+
+The full GPL-2.0 text is available at https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt

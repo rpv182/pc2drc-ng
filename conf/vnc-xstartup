@@ -1,0 +1,14 @@
+#!/bin/sh
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+[ -r "$HOME/.Xresources" ] && xrdb "$HOME/.Xresources"
+xsetroot -solid '#2b2b2b'
+# Nested 854x480 desktop. gnome-session is what made original pc2drc VNC die with error 111.
+if command -v openbox >/dev/null 2>&1; then
+  openbox &
+else
+  twm &
+fi
+sleep 0.4
+xrandr --fb 854x480 >/dev/null 2>&1 || true
+exec xterm -geometry 80x24+8+8 -title 'pc2drc-ng'

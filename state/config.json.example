@@ -1,0 +1,7 @@
+{
+  "iface": "wlx123456789abc",
+  "ssid": "WiiUaabbccddeeff",
+  "psk": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "gamepad_mac": "aa:bb:cc:dd:ee:ff",
+  "user": "yourlinuxuser"
+}

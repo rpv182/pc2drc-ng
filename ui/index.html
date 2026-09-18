@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pc2drc-ng</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="chassis">
+    <div class="shoulder left"></div>
+    <div class="shoulder right"></div>
+    <div class="shell">
+      <header class="topbar">
+        <span class="brand">pc2drc-ng</span>
+        <span id="status-pill" class="pill">offline</span>
+      </header>
+      <div class="screen">
+        <p class="hint" id="banner">After install, this screen is pairing + VNC host. Stages 0–2 stay in the terminal.</p>
+
+        <section class="card">
+          <h2>1. Pair GamePad</h2>
+          <label>
+            USB adapter
+            <select id="iface"></select>
+          </label>
+          <p class="suits-label">Wii U suit code (skip if already paired)</p>
+          <div class="suits" id="suits">
+            <button type="button" data-digit="0" title="Spade = 0">♠</button>
+            <button type="button" data-digit="1" title="Heart = 1">♥</button>
+            <button type="button" data-digit="2" title="Diamond = 2">♦</button>
+            <button type="button" data-digit="3" title="Club = 3">♣</button>
+          </div>
+          <div class="pin-row">
+            <span id="pin-display">----</span>
+            <button type="button" class="ghost" id="pin-clear">Clear</button>
+            <label class="check"><input type="checkbox" id="skip-wiiu" /> already have PSK</label>
+          </div>
+          <button type="button" class="primary" id="btn-pair">Pair</button>
+        </section>
+
+        <section class="card">
+          <h2>2. Host VNC</h2>
+          <p class="hint">Starts the fake Wii U AP, 854×480 desktop, and <code>drcvncclient</code>. Power the GamePad on after this.</p>
+          <div class="row">
+            <button type="button" class="primary" id="btn-start">Start stream</button>
+            <button type="button" class="ghost" id="btn-stop">Stop</button>
+          </div>
+        </section>
+
+        <pre id="log" class="log" aria-live="polite">Ready.</pre>
+      </div>
+      <div class="home">HOME</div>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
