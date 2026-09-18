@@ -14,6 +14,22 @@ Logs land in `logs/`. Pairing and start keep timestamped files. Always attach th
 | `openssl-1.0.1u` / ftp.openssl.org | Dead URL, GCC 11+ refuses the tree | OpenSSL **1.0.2u** built into `./prefix` only |
 | Stage scripts require folder name `pc2drc` | Hardcoded | Folder can be `pc2drc-ng` |
 
+**Could not connect to wpa_supplicant**
+
+That is `wpa_cli` failing to attach after `wpa_supplicant` started. Typical causes:
+
+- Intel onboard Wi-Fi (`wlo1` / `iwlwifi`) was selected. Plug in the **RT5572 USB** stick and pick `wlx… (rt2800usb)`.
+- A leftover control socket in `/var/run/wpa_supplicant_drc`.
+- NetworkManager still owning the stick.
+
+`pair.sh` now refuses Intel, recreates the control socket, and calls `wpa_cli -i <iface>`. Re-run:
+
+```bash
+cd ~/pc2drc-ng
+git pull
+sudo bash ./pair.sh
+```
+
 ## Pairing
 
 **Wii U not found in scan**
