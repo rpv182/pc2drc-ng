@@ -16,19 +16,15 @@ Logs land in `logs/`. Pairing and start keep timestamped files. Always attach th
 
 **Could not connect to wpa_supplicant**
 
-That is `wpa_cli` failing to attach after `wpa_supplicant` started. Typical causes:
-
-- Intel onboard Wi-Fi (`wlo1` / `iwlwifi`) was selected. Plug in the **RT5572 USB** stick and pick `wlx… (rt2800usb)`.
-- A leftover control socket in `/var/run/wpa_supplicant_drc`.
-- NetworkManager still owning the stick.
-
-`pair.sh` now refuses Intel, recreates the control socket, and calls `wpa_cli -i <iface>`. Re-run:
+That is `wpa_cli` failing to attach after `wpa_supplicant` started. Pairing is **not** blocked on Intel `wlo1`. The script now waits for the control socket and calls `wpa_cli -i <iface>`.
 
 ```bash
 cd ~/pc2drc-ng
 git pull
 sudo bash ./pair.sh
 ```
+
+If you have the RT5572 plugged in, pick that `wlx…` interface. If you only have `wlo1`, pairing can still run.
 
 ## Pairing
 

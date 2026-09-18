@@ -71,7 +71,7 @@ def choose_iface(prompt: str) -> str:
         if driver in COMPAT_DRIVERS:
             tag = "  <- use this (RT5572 / 5 GHz AP)"
         elif driver in INCOMPAT_DRIVERS:
-            tag = "  <- Intel, will not work"
+            tag = "  <- Intel (AP/video often fails; pairing can still run)"
         print(f"  {i}: {name}  ({driver}){tag}")
     if len(ifaces) == 1:
         print(f"Using the only wireless interface: {ifaces[0]}")
@@ -117,13 +117,12 @@ def iface_driver(iface: str) -> str:
     return "unknown"
 
 
-def refuse_intel(iface: str) -> None:
+def warn_intel(iface: str) -> None:
     driver = iface_driver(iface)
-    if driver in INCOMPAT_DRIVERS and os.environ.get("PC2DRC_ALLOW_INTEL") != "1":
-        die(
-            f"{iface} is Intel {driver}. It cannot pair or host the GamePad AP. "
-            "Plug in the RT5572 USB stick, then run sudo ./pair.sh again "
-            "(pick the wlx… / rt2800usb interface, not wlo1)."
+    if driver in INCOMPAT_DRIVERS:
+        print(
+            f"NOTE: {iface} is Intel {driver}. WPS pairing may work; "
+            "the GamePad AP / video usually needs the RT5572 USB stick."
         )
 
 
@@ -321,8 +320,8 @@ def pair_wiiu(iface: str, log: Path, pin: str | None = None, noninteractive: boo
     if idx == 2:
         die(
             f"Could not connect to wpa_supplicant on {iface} ({iface_driver(iface)}). "
-            "Plug in the RT5572 USB stick and pick that interface. "
-            f"Control socket: {CTRL_DIR / iface}"
+            f"Control socket: {CTRL_DIR / iface}. "
+            "Re-run sudo ./pair.sh; if this is the USB stick, unplug/replug it first."
         )
 
     print("Starting WPS PIN pairing...")
@@ -472,7 +471,7 @@ def main() -> int:
         iface = args.iface or choose_iface("Which USB Wi-Fi adapter should talk to the Wii U / GamePad?")
         if not confirm(f"Use {iface}?"):
             iface = choose_iface("Pick another interface:")
-    refuse_intel(iface)
+    warn_intel(iface)
     prepare_iface(iface)
 
     if skip == "skip":
