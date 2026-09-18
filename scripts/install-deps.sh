@@ -222,7 +222,6 @@ EOF
 
 pc2drc_prepare_apt() {
   pc2drc_log "Preparing apt sources for a fresh install..."
-  pc2drc_ensure_dns archive.ubuntu.com || pc2drc_ensure_dns security.ubuntu.com || true
   pc2drc_disable_cdrom_sources
 
   case "${OS_ID}" in
@@ -263,6 +262,16 @@ pc2drc_prepare_apt() {
     fi
   fi
 }
+
+if command -v gcc >/dev/null 2>&1 \
+  && command -v tigervncserver >/dev/null 2>&1 \
+  && command -v openbox >/dev/null 2>&1 \
+  && command -v xterm >/dev/null 2>&1 \
+  && { command -v yasm >/dev/null 2>&1 || command -v nasm >/dev/null 2>&1; } \
+  && python3 -c 'import pexpect' >/dev/null 2>&1; then
+  pc2drc_log "Required apt packages already present; skipping apt."
+  exit 0
+fi
 
 pc2drc_prepare_apt
 

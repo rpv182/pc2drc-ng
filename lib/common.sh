@@ -65,37 +65,49 @@ pc2drc_need_cmd() {
 }
 
 pc2drc_have_internet() {
-  if command -v curl >/dev/null 2>&1; then
-    curl -fsS --max-time 8 https://github.com >/dev/null 2>&1 && return 0
-  fi
-  if command -v wget >/dev/null 2>&1; then
-    wget -q --timeout=8 --spider https://github.com >/dev/null 2>&1 && return 0
-  fi
+  local url
+  for url in https://github.com https://archive.ubuntu.com http://archive.ubuntu.com; do
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsS --max-time 5 -o /dev/null "${url}" >/dev/null 2>&1 && return 0
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q --timeout=5 --spider "${url}" >/dev/null 2>&1 && return 0
+    fi
+  done
   if command -v ping >/dev/null 2>&1; then
-    ping -c1 -W3 1.1.1.1 >/dev/null 2>&1 && return 0
+    ping -c1 -W2 1.1.1.1 >/dev/null 2>&1 && return 0
   fi
   return 1
 }
 
 pc2drc_dns_resolves() {
   local host="$1"
-  getent ahosts "${host}" >/dev/null 2>&1 && return 0
-  getent hosts "${host}" >/dev/null 2>&1 && return 0
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 3 getent ahosts "${host}" >/dev/null 2>&1 && return 0
+    timeout 3 getent hosts "${host}" >/dev/null 2>&1 && return 0
+  else
+    getent ahosts "${host}" >/dev/null 2>&1 && return 0
+    getent hosts "${host}" >/dev/null 2>&1 && return 0
+  fi
   if command -v python3 >/dev/null 2>&1; then
     python3 - "${host}" <<'PY' >/dev/null 2>&1 && return 0
 import socket, sys
-socket.getaddrinfo(sys.argv[1], 443, proto=socket.IPPROTO_TCP)
+socket.setdefaulttimeout(2)
+socket.getaddrinfo(sys.argv[1], 443)
 PY
   fi
   return 1
 }
 
-# Fresh Ubuntu often has a working default route but a dead systemd-resolved stub
-# (Temporary failure resolving archive.ubuntu.com / github.com). Fix that in place
-# so apt and git clone can finish.
+# Only rewrite resolver config when we cannot talk to the network at all.
+# Do not treat a slow github.com lookup as a reason to smash /etc/resolv.conf
+# (that hung a 20.04 install for ~50s while apt still worked).
 pc2drc_ensure_dns() {
-  local host="${1:-github.com}"
+  local host="${1:-archive.ubuntu.com}"
   if pc2drc_dns_resolves "${host}"; then
+    return 0
+  fi
+  if pc2drc_have_internet; then
+    pc2drc_log "DNS is slow for ${host} but the network is up; not rewriting resolv.conf"
     return 0
   fi
   pc2drc_log "DNS cannot resolve ${host}; trying public resolvers"
@@ -114,21 +126,15 @@ pc2drc_ensure_dns() {
 DNS=1.1.1.1 8.8.8.8
 FallbackDNS=9.9.9.9 1.0.0.1
 EOF
-  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
-    systemctl restart systemd-resolved >/dev/null 2>&1 || true
-    sleep 1
-  fi
-  pc2drc_dns_resolves "${host}" && return 0
+  # Do not restart systemd-resolved here — that drops DHCP DNS mid-install.
 
-  # Skip the 127.0.0.53 stub and use resolved's upstream servers, or write a
-  # static resolv.conf if resolved is not running.
   if [[ -e /run/systemd/resolve/resolv.conf ]]; then
     pc2drc_log "Pointing /etc/resolv.conf at systemd-resolved upstream servers"
     ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
     pc2drc_dns_resolves "${host}" && return 0
   fi
 
-  if [[ -f /etc/resolv.conf ]] || [[ -L /etc/resolv.conf ]]; then
+  if [[ -e /etc/resolv.conf ]]; then
     pc2drc_log "Writing public DNS into /etc/resolv.conf"
     rm -f /etc/resolv.conf
     cat > /etc/resolv.conf <<'EOF'
@@ -150,7 +156,7 @@ pc2drc_retry_cmd() {
     fi
     delay=$((i * 3))
     pc2drc_log "${desc} failed (attempt ${i}/${tries}); retrying in ${delay}s"
-    pc2drc_ensure_dns github.com || pc2drc_ensure_dns archive.ubuntu.com || true
+    pc2drc_ensure_dns archive.ubuntu.com || true
     sleep "${delay}"
   done
   return 1

@@ -23,9 +23,11 @@ pc2drc_log "root=${PC2DRC_ROOT}"
 pc2drc_log "user=$(pc2drc_real_user) home=$(pc2drc_real_home)"
 pc2drc_log "log=${PC2DRC_LOG_FILE}"
 
-pc2drc_ensure_dns github.com || pc2drc_ensure_dns archive.ubuntu.com || true
 if ! pc2drc_have_internet; then
-  pc2drc_die "Internet is required for the first install (apt + git clone + OpenSSL/libnl sources). DNS failed for github.com — plug Ethernet / Wi-Fi back in and retry."
+  pc2drc_ensure_dns archive.ubuntu.com || pc2drc_ensure_dns github.com || true
+fi
+if ! pc2drc_have_internet; then
+  pc2drc_die "Internet is required for the first install (apt + git clone + OpenSSL/libnl sources). Plug Ethernet / Wi-Fi back in and retry."
 fi
 
 ./scripts/check-system.sh || true
@@ -39,6 +41,12 @@ fi
 
 pc2drc_log "TSF probe after build:"
 ./lib/tsf.sh || true
+
+# install.sh runs as root and writes vendor/prefix/logs; give them back to the user
+# so a later `rm -rf ~/pc2drc-ng` does not hit permission denied.
+if [[ "$(pc2drc_real_user)" != "root" ]]; then
+  chown -R "$(pc2drc_real_user):" "${PC2DRC_ROOT}/vendor" "${PC2DRC_PREFIX}" "${PC2DRC_LOGS}" 2>/dev/null || true
+fi
 
 echo
 echo "============================================================"

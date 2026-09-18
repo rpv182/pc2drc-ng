@@ -89,6 +89,18 @@ sudo bash ./install.sh
 
 A failed clone may leave an empty `vendor/upstream`; the installer deletes that and retries. Ethernet is more reliable than Wi-Fi while it downloads.
 
+## `target already defined - linux-x86_64`
+
+OpenSSL 1.0.2 `./config` already detects the OS. Passing `linux-x86_64` a second time aborts configure before `make`. Re-run `sudo bash ./install.sh`; apt packages and libnl are skipped when already present.
+
+Do **not** run `./pair.sh` until install prints `Install finished.` `wpa_supplicant` does not exist until the OpenSSL/hostapd build completes.
+
+If `rm -rf ~/pc2drc-ng` says Permission denied, the previous run created root-owned `prefix/` / `logs/`:
+
+```bash
+sudo rm -rf ~/pc2drc-ng
+```
+
 ## Ubuntu 20.04 specifically
 
 20.04 still works as a *build host* if you have ESM/mirrors, but:

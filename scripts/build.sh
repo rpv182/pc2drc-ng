@@ -19,7 +19,6 @@ fetch_upstream() {
   fi
   pc2drc_need_cmd git
   pc2drc_log "Cloning archived thefloppydriver/pc2drc (hostapd + libdrc + x264 forks)..."
-  pc2drc_ensure_dns github.com || true
   clone_once() {
     rm -rf "${PC2DRC_VENDOR}"
     git clone --depth 1 https://github.com/thefloppydriver/pc2drc.git "${PC2DRC_VENDOR}"
@@ -31,7 +30,6 @@ fetch_upstream() {
 
 download_to() {
   local url="$1" dest="$2"
-  pc2drc_ensure_dns github.com || true
   if command -v curl >/dev/null 2>&1; then
     pc2drc_retry_cmd 5 "download ${url}" \
       curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "${dest}" "${url}"
@@ -77,10 +75,14 @@ build_openssl() {
   fi
   pc2drc_log "Building OpenSSL 1.0.2u into prefix..."
   pushd "${src}" >/dev/null
-  # GCC 9–13: this old tree is not -Werror clean. Isolate it in prefix so the system OpenSSL 3 stays untouched.
-  ./config --prefix="${PC2DRC_PREFIX}" --openssldir="${PC2DRC_PREFIX}/ssl" \
-    threads zlib no-shared no-ssl3 no-ssl2 linux-x86_64 \
-    -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int
+  # ./config auto-detects the target. Passing linux-x86_64 here makes 1.0.2 die with
+  # "target already defined - linux-x86_64 (offending arg: linux-x86_64)".
+  if [[ -f Makefile ]]; then
+    make distclean >/dev/null 2>&1 || make clean >/dev/null 2>&1 || true
+  fi
+  CFLAGS="-O2 -fPIC -Wno-error -Wno-implicit-function-declaration -Wno-implicit-int ${CFLAGS:-}" \
+    ./config --prefix="${PC2DRC_PREFIX}" --openssldir="${PC2DRC_PREFIX}/ssl" \
+      threads zlib no-shared no-ssl3 no-ssl2
   make -j"${JOBS}" depend || true
   make -j"${JOBS}"
   make install_sw
