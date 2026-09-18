@@ -23,8 +23,9 @@ pc2drc_log "root=${PC2DRC_ROOT}"
 pc2drc_log "user=$(pc2drc_real_user) home=$(pc2drc_real_home)"
 pc2drc_log "log=${PC2DRC_LOG_FILE}"
 
+pc2drc_ensure_dns github.com || pc2drc_ensure_dns archive.ubuntu.com || true
 if ! pc2drc_have_internet; then
-  pc2drc_die "Internet is required for the first install (apt + git clone + OpenSSL/libnl sources)."
+  pc2drc_die "Internet is required for the first install (apt + git clone + OpenSSL/libnl sources). DNS failed for github.com — plug Ethernet / Wi-Fi back in and retry."
 fi
 
 ./scripts/check-system.sh || true

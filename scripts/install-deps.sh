@@ -24,13 +24,16 @@ OS_ID="${ID:-unknown}"
 OS_CODENAME="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
 OS_VERSION_ID="${VERSION_ID:-}"
 
+APT_GET=(apt-get -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+
 pc2drc_apt_update() {
   local attempt
   for attempt in 1 2 3; do
-    if apt-get update; then
+    if "${APT_GET[@]}" update; then
       return 0
     fi
     pc2drc_log "apt-get update failed (attempt ${attempt}/3)"
+    pc2drc_ensure_dns archive.ubuntu.com || pc2drc_ensure_dns security.ubuntu.com || true
     sleep $((attempt * 2))
   done
   return 1
@@ -60,14 +63,20 @@ pc2drc_apt_install_available() {
   if [[ ${#have[@]} -eq 0 ]]; then
     return 1
   fi
-  if apt-get install -y --no-install-recommends "${have[@]}"; then
+  if "${APT_GET[@]}" install -y --no-install-recommends "${have[@]}"; then
+    return 0
+  fi
+  pc2drc_log "batch install failed; retrying after DNS/apt recover"
+  pc2drc_ensure_dns archive.ubuntu.com || true
+  "${APT_GET[@]}" update >/dev/null 2>&1 || true
+  if "${APT_GET[@]}" install -y --fix-missing --no-install-recommends "${have[@]}"; then
     return 0
   fi
   # A single broken/held package must not abort a fresh install of the rest.
   pc2drc_log "batch install failed; trying packages one at a time"
   local ok=0
   for pkg in "${have[@]}"; do
-    if apt-get install -y --no-install-recommends "${pkg}"; then
+    if "${APT_GET[@]}" install -y --fix-missing --no-install-recommends "${pkg}"; then
       ok=1
     else
       pc2drc_log "WARNING: apt could not install ${pkg}"
@@ -213,6 +222,7 @@ EOF
 
 pc2drc_prepare_apt() {
   pc2drc_log "Preparing apt sources for a fresh install..."
+  pc2drc_ensure_dns archive.ubuntu.com || pc2drc_ensure_dns security.ubuntu.com || true
   pc2drc_disable_cdrom_sources
 
   case "${OS_ID}" in
@@ -232,9 +242,9 @@ pc2drc_prepare_apt() {
   fi
 
   # software-properties-common is in Ubuntu main, so this works before universe.
-  apt-get install -y --no-install-recommends ca-certificates gnupg curl wget || true
+  "${APT_GET[@]}" install -y --no-install-recommends ca-certificates gnupg curl wget || true
   if [[ "${OS_ID}" == "ubuntu" ]] && ! command -v add-apt-repository >/dev/null 2>&1; then
-    apt-get install -y --no-install-recommends software-properties-common || true
+    "${APT_GET[@]}" install -y --no-install-recommends software-properties-common || true
   fi
 
   if [[ "${OS_ID}" == "ubuntu" ]]; then
@@ -295,7 +305,10 @@ pc2drc_apt_install_available freeglut3-dev libglut-dev mesa-utils || true
 pc2drc_apt_install_available tigervnc-viewer xtightvncviewer tigervnc-xorg-extension || true
 pc2drc_apt_install_available twm fluxbox dbus-x11 || true
 pc2drc_apt_install_available network-manager || true
-pc2drc_apt_install_available "linux-headers-$(uname -r)" linux-headers-generic dkms || true
+
+# Do not install linux-headers-generic / dkms. This rewrite never patches the
+# kernel, and on 20.04 HWE (5.15) linux-headers-generic pulls the unused 5.4
+# tree from security.ubuntu.com.
 
 # The GamePad-patched x264 in ./prefix must win over the distro libx264.
 apt-get remove -y libx264-dev >/dev/null 2>&1 || true

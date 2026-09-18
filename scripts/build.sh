@@ -19,15 +19,25 @@ fetch_upstream() {
   fi
   pc2drc_need_cmd git
   pc2drc_log "Cloning archived thefloppydriver/pc2drc (hostapd + libdrc + x264 forks)..."
-  git clone --depth 1 https://github.com/thefloppydriver/pc2drc.git "${PC2DRC_VENDOR}"
+  pc2drc_ensure_dns github.com || true
+  clone_once() {
+    rm -rf "${PC2DRC_VENDOR}"
+    git clone --depth 1 https://github.com/thefloppydriver/pc2drc.git "${PC2DRC_VENDOR}"
+  }
+  if ! pc2drc_retry_cmd 6 "git clone thefloppydriver/pc2drc" clone_once; then
+    pc2drc_die "Could not clone https://github.com/thefloppydriver/pc2drc.git (DNS/network). Fix Wi-Fi/Ethernet, then re-run sudo bash ./install.sh"
+  fi
 }
 
 download_to() {
   local url="$1" dest="$2"
+  pc2drc_ensure_dns github.com || true
   if command -v curl >/dev/null 2>&1; then
-    curl -fL --retry 3 --retry-delay 2 -o "${dest}" "${url}"
+    pc2drc_retry_cmd 5 "download ${url}" \
+      curl -fL --retry 5 --retry-delay 2 --retry-connrefused -o "${dest}" "${url}"
   else
-    wget -O "${dest}" "${url}"
+    pc2drc_retry_cmd 5 "download ${url}" \
+      wget --tries=5 --retry-connrefused --waitretry=2 -O "${dest}" "${url}"
   fi
 }
 
@@ -185,9 +195,16 @@ ensure_libvncclient() {
   mkdir -p "${PC2DRC_ROOT}/vendor"
   if [[ ! -d "${src}/.git" && ! -f "${src}/CMakeLists.txt" ]]; then
     pc2drc_log "Cloning LibVNC/libvncserver (libvncserver-dev was not installed)..."
-    git clone --depth 1 --branch LibVNCServer-0.9.14 \
-      https://github.com/LibVNC/libvncserver.git "${src}" \
-      || git clone --depth 1 https://github.com/LibVNC/libvncserver.git "${src}"
+    rm -rf "${src}"
+    clone_libvnc() {
+      rm -rf "${src}"
+      git clone --depth 1 --branch LibVNCServer-0.9.14 \
+        https://github.com/LibVNC/libvncserver.git "${src}" \
+        || git clone --depth 1 https://github.com/LibVNC/libvncserver.git "${src}"
+    }
+    if ! pc2drc_retry_cmd 5 "git clone LibVNC/libvncserver" clone_libvnc; then
+      pc2drc_die "Could not clone libvncserver and libvncserver-dev is not installed."
+    fi
   fi
   pc2drc_log "Building libvncserver into prefix..."
   mkdir -p "${src}/build"

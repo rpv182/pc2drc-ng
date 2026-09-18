@@ -77,6 +77,85 @@ pc2drc_have_internet() {
   return 1
 }
 
+pc2drc_dns_resolves() {
+  local host="$1"
+  getent ahosts "${host}" >/dev/null 2>&1 && return 0
+  getent hosts "${host}" >/dev/null 2>&1 && return 0
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "${host}" <<'PY' >/dev/null 2>&1 && return 0
+import socket, sys
+socket.getaddrinfo(sys.argv[1], 443, proto=socket.IPPROTO_TCP)
+PY
+  fi
+  return 1
+}
+
+# Fresh Ubuntu often has a working default route but a dead systemd-resolved stub
+# (Temporary failure resolving archive.ubuntu.com / github.com). Fix that in place
+# so apt and git clone can finish.
+pc2drc_ensure_dns() {
+  local host="${1:-github.com}"
+  if pc2drc_dns_resolves "${host}"; then
+    return 0
+  fi
+  pc2drc_log "DNS cannot resolve ${host}; trying public resolvers"
+
+  if command -v systemd-resolve >/dev/null 2>&1; then
+    systemd-resolve --flush-caches >/dev/null 2>&1 || true
+  fi
+  if command -v resolvectl >/dev/null 2>&1; then
+    resolvectl flush-caches >/dev/null 2>&1 || true
+  fi
+  pc2drc_dns_resolves "${host}" && return 0
+
+  mkdir -p /etc/systemd/resolved.conf.d
+  cat > /etc/systemd/resolved.conf.d/99-pc2drc-ng.conf <<'EOF'
+[Resolve]
+DNS=1.1.1.1 8.8.8.8
+FallbackDNS=9.9.9.9 1.0.0.1
+EOF
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
+    systemctl restart systemd-resolved >/dev/null 2>&1 || true
+    sleep 1
+  fi
+  pc2drc_dns_resolves "${host}" && return 0
+
+  # Skip the 127.0.0.53 stub and use resolved's upstream servers, or write a
+  # static resolv.conf if resolved is not running.
+  if [[ -e /run/systemd/resolve/resolv.conf ]]; then
+    pc2drc_log "Pointing /etc/resolv.conf at systemd-resolved upstream servers"
+    ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
+    pc2drc_dns_resolves "${host}" && return 0
+  fi
+
+  if [[ -f /etc/resolv.conf ]] || [[ -L /etc/resolv.conf ]]; then
+    pc2drc_log "Writing public DNS into /etc/resolv.conf"
+    rm -f /etc/resolv.conf
+    cat > /etc/resolv.conf <<'EOF'
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 9.9.9.9
+EOF
+  fi
+  pc2drc_dns_resolves "${host}"
+}
+
+pc2drc_retry_cmd() {
+  local tries="$1" desc="$2"
+  shift 2
+  local i delay
+  for i in $(seq 1 "${tries}"); do
+    if "$@"; then
+      return 0
+    fi
+    delay=$((i * 3))
+    pc2drc_log "${desc} failed (attempt ${i}/${tries}); retrying in ${delay}s"
+    pc2drc_ensure_dns github.com || pc2drc_ensure_dns archive.ubuntu.com || true
+    sleep "${delay}"
+  done
+  return 1
+}
+
 pc2drc_wifi_ifaces() {
   local d
   for d in /sys/class/net/*; do

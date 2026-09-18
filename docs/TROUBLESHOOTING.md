@@ -69,6 +69,26 @@ Those packages live in **universe**. `install.sh` now disables the CDROM source,
 
 If it still cannot see `ffmpeg` after that, paste `/etc/apt/sources.list` and `ls /etc/apt/sources.list.d/`.
 
+## `Temporary failure resolving` / `Could not resolve host: github.com`
+
+The packages stage got far enough; then DNS died. Typical on a fresh 20.04 box with flaky Wi-Fi or a broken `systemd-resolved` stub (`127.0.0.53`).
+
+`install.sh` now:
+
+- skips `linux-headers-generic` / `dkms` (this rewrite does not patch the kernel; on 20.04 HWE those pull unused 5.4 headers)
+- retries apt and `git clone`
+- if name lookup fails, points DNS at 1.1.1.1 / 8.8.8.8
+
+Re-run:
+
+```bash
+cd ~/pc2drc-ng
+git pull
+sudo bash ./install.sh
+```
+
+A failed clone may leave an empty `vendor/upstream`; the installer deletes that and retries. Ethernet is more reliable than Wi-Fi while it downloads.
+
 ## Ubuntu 20.04 specifically
 
 20.04 still works as a *build host* if you have ESM/mirrors, but:
