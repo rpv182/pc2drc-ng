@@ -54,6 +54,21 @@ Logs land in `logs/`. Pairing and start keep timestamped files. Always attach th
 - USB 2.0 hub / long cable. Plug the dongle into the PC
 - Interference on 5 GHz; original project also has this as an unfixed bug
 
+## Fresh Ubuntu install / `Unable to locate package`
+
+A 20.04 desktop ISO leaves apt looking at `cdrom://Ubuntu 20.04…` plus `main restricted` only. That is why a first `sudo ./install.sh` used to die with:
+
+```
+E: Unable to locate package yasm
+E: Unable to locate package ffmpeg
+E: Package 'openbox' has no installation candidate
+E: Package 'xterm' has no installation candidate
+```
+
+Those packages live in **universe**. `install.sh` now disables the CDROM source, enables universe, and re-runs `apt-get update` before installing anything. Re-run `sudo bash ./install.sh` on the same tree; it is safe to resume.
+
+If it still cannot see `ffmpeg` after that, paste `/etc/apt/sources.list` and `ls /etc/apt/sources.list.d/`.
+
 ## Ubuntu 20.04 specifically
 
 20.04 still works as a *build host* if you have ESM/mirrors, but:

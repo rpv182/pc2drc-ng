@@ -30,7 +30,7 @@ These are the bugs people hit on 20.04. **Paste your log if you hit a new one.**
 |---|---|
 | Ubuntu 22.04 / 24.04 | intended |
 | Debian 12 / 13 | intended |
-| Ubuntu 20.04 | supported as a build host, but 20.04 archives are dying; if `apt-get update` fails, use 22.04 |
+| Ubuntu 20.04 | supported, including a **fresh ISO install** (the installer turns on universe and ignores the leftover `cdrom://` apt source) |
 | Windows / WSL | no. USB 5 GHz AP + TSF needs native Linux |
 
 This repo can live on a Windows machine; **run the scripts on the Linux box**.
@@ -47,6 +47,12 @@ sudo bash ./install.sh
 ```
 
 That one script is stages 0–2 (packages, OpenSSL/libnl prefix, hostapd, libdrc, drcvncclient).
+
+On a brand-new Ubuntu install it will:
+
+- comment out the installer `cdrom://` apt source (it only has the ISO package set)
+- enable **universe / restricted / multiverse** so ffmpeg, openbox, TigerVNC, yasm, and SDL actually exist
+- then build everything into `./prefix`
 
 Then pair + host VNC from one UI:
 

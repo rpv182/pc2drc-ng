@@ -170,9 +170,39 @@ build_libdrc() {
   popd >/dev/null
 }
 
+ensure_libvncclient() {
+  if pkg-config --exists libvncclient 2>/dev/null; then
+    pc2drc_log "libvncclient present ($(pkg-config --modversion libvncclient 2>/dev/null || echo ok))"
+    return 0
+  fi
+  if [[ -f /usr/include/rfb/rfbclient.h || -f "${PC2DRC_PREFIX}/include/rfb/rfbclient.h" ]]; then
+    pc2drc_log "libvncclient headers present"
+    return 0
+  fi
+  # Fresh hosts without universe never got libvncserver-dev. Build a copy into prefix
+  # the same way original pc2drc stage-2 did.
+  local src="${PC2DRC_ROOT}/vendor/libvncserver"
+  mkdir -p "${PC2DRC_ROOT}/vendor"
+  if [[ ! -d "${src}/.git" && ! -f "${src}/CMakeLists.txt" ]]; then
+    pc2drc_log "Cloning LibVNC/libvncserver (libvncserver-dev was not installed)..."
+    git clone --depth 1 --branch LibVNCServer-0.9.14 \
+      https://github.com/LibVNC/libvncserver.git "${src}" \
+      || git clone --depth 1 https://github.com/LibVNC/libvncserver.git "${src}"
+  fi
+  pc2drc_log "Building libvncserver into prefix..."
+  mkdir -p "${src}/build"
+  pushd "${src}/build" >/dev/null
+  cmake .. -DCMAKE_INSTALL_PREFIX="${PC2DRC_PREFIX}" -DBUILD_SHARED_LIBS=ON \
+    -DWITH_OPENSSL=ON -DWITH_GNUTLS=OFF -DWITH_SYSTEMD=OFF
+  cmake --build . --parallel "${JOBS}"
+  cmake --install .
+  popd >/dev/null
+}
+
 build_drcvncclient() {
   local src="${PC2DRC_VENDOR}/libdrc-vnc/drcvncclient"
   [[ -d "${src}" ]] || pc2drc_die "drcvncclient missing from upstream clone"
+  ensure_libvncclient
   pc2drc_log "Building drcvncclient..."
   pushd "${src}" >/dev/null
   if [[ -f configure.ac && ! -x configure ]]; then

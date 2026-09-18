@@ -68,6 +68,9 @@ pc2drc_have_internet() {
   if command -v curl >/dev/null 2>&1; then
     curl -fsS --max-time 8 https://github.com >/dev/null 2>&1 && return 0
   fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -q --timeout=8 --spider https://github.com >/dev/null 2>&1 && return 0
+  fi
   if command -v ping >/dev/null 2>&1; then
     ping -c1 -W3 1.1.1.1 >/dev/null 2>&1 && return 0
   fi
